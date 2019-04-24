@@ -48,5 +48,10 @@ class ChromeGlobalConsoleTest extends GlobalConsoleTest implements ISeleniumProv
     void testViewAddressSpaceCreatedByApi() throws Exception {
         doTestViewAddressSpace();
     }
+
+    @Test
+    void testCreateAddrSpaceNonClusterAdmin() throws Exception {
+        doTestCreateAddrSpaceNonClusterAdmin();
+    }
 }
 

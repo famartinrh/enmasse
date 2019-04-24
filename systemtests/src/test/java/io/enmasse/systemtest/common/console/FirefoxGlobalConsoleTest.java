@@ -48,5 +48,10 @@ class FirefoxGlobalConsoleTest extends GlobalConsoleTest implements ISeleniumPro
     void testViewAddressSpaceCreatedByApi() throws Exception {
         doTestViewAddressSpace();
     }
+
+    @Test
+    void testCreateAddrSpaceNonClusterAdmin() throws Exception {
+        doTestCreateAddrSpaceNonClusterAdmin();
+    }
 }
 

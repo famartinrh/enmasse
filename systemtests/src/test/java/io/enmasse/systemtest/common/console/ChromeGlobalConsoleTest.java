@@ -15,8 +15,10 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 
 import static io.enmasse.systemtest.TestTag.isolated;
+import static io.enmasse.systemtest.TestTag.nonPR;
 
 @Tag(isolated)
+@Tag(nonPR)
 class ChromeGlobalConsoleTest extends GlobalConsoleTest implements ISeleniumProviderChrome {
     private static Logger log = CustomLogger.getLogger();
 

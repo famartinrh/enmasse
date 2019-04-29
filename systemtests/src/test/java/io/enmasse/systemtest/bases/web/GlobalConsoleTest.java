@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public abstract class GlobalConsoleTest extends TestBase implements ISeleniumProvider {
 
     private GlobalConsolePage globalConsolePage;
-    private static final AdminResourcesManager adminManager = new AdminResourcesManager(kubernetes);
+    private static final AdminResourcesManager adminManager = new AdminResourcesManager();
 
     @BeforeEach
     public void setUpWebConsoleTests() throws Exception {
@@ -78,7 +78,7 @@ public abstract class GlobalConsoleTest extends TestBase implements ISeleniumPro
         adminManager.createAuthService(standardAuth);
 
         AddressSpace addressSpace = AddressSpaceUtils.createAddressSpaceObject("test-addr-space",
-                kubernetes.getNamespace(),
+                kubernetes.getInfraNamespace(),
                 standardAuth.getMetadata().getName(),
                 AddressSpaceType.BROKERED,
                 AddressSpacePlans.BROKERED);
@@ -93,7 +93,7 @@ public abstract class GlobalConsoleTest extends TestBase implements ISeleniumPro
 
     protected void doTestViewAddressSpace() throws Exception {
         AddressSpace addressSpace = AddressSpaceUtils.createAddressSpaceObject("test-addr-space-api",
-                kubernetes.getNamespace(),
+                kubernetes.getInfraNamespace(),
                 AddressSpaceType.BROKERED,
                 AddressSpacePlans.BROKERED);
 

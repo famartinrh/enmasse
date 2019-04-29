@@ -117,6 +117,7 @@ class CertProviderTest extends TestBase {
         createTestEnv(new CertSpecBuilder()
                 .withProvider(CertProvider.selfsigned.name())
                 .build(), false);
+        var client = kubernetes.getAddressSpaceClient();
 
         String endpointCert = new String(Base64.getDecoder().decode(
                 getAddressSpace(addressSpace.getMetadata().getName())

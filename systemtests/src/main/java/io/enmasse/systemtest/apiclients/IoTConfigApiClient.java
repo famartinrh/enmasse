@@ -35,7 +35,7 @@ public class IoTConfigApiClient extends ApiClient {
 
     public IoTConfigApiClient(Kubernetes kubernetes) {
         super(kubernetes, kubernetes::getRestEndpoint, IoTCrd.API_VERSION);
-        this.iotConfigPath = String.format("/apis/%s/namespaces/%s/iotconfigs", IoTCrd.API_VERSION, kubernetes.getNamespace());
+        this.iotConfigPath = String.format("/apis/%s/namespaces/%s/iotconfigs", IoTCrd.API_VERSION, kubernetes.getInfraNamespace());
     }
 
     public IoTConfigApiClient(Kubernetes kubernetes, String namespace) {

@@ -25,7 +25,7 @@ import static io.enmasse.systemtest.TestTag.isolated;
 class AuthServiceTest extends TestBase {
 
     private static Logger log = CustomLogger.getLogger();
-    private static final AdminResourcesManager adminManager = new AdminResourcesManager(kubernetes);
+    private static final AdminResourcesManager adminManager = new AdminResourcesManager();
 
     @BeforeEach
     void setUp() throws Exception {
@@ -35,7 +35,7 @@ class AuthServiceTest extends TestBase {
     @AfterEach
     void tearDown() throws Exception {
         adminManager.tearDown();
-        SystemtestsKubernetesApps.deletePostgresDB(kubernetes.getNamespace());
+        SystemtestsKubernetesApps.deletePostgresDB(kubernetes.getInfraNamespace());
     }
 
     @Test
@@ -150,7 +150,7 @@ class AuthServiceTest extends TestBase {
 
     @Test
     void testStandardAuthServiceWithDB() throws Exception {
-        Endpoint endpoint = SystemtestsKubernetesApps.deployPostgresDB(kubernetes.getNamespace());
+        Endpoint endpoint = SystemtestsKubernetesApps.deployPostgresDB(kubernetes.getInfraNamespace());
         AuthenticationService standardAuth = AuthServiceUtils.createStandardAuthServiceObject("test-standard-authservice-postgres",
                 endpoint.getHost(), endpoint.getPort(), "postgresql", "postgresdb", SystemtestsKubernetesApps.POSTGRES_APP);
         adminManager.createAuthService(standardAuth);

@@ -4,8 +4,8 @@
  */
 package io.enmasse.systemtest.common.plans;
 
-import io.enmasse.address.model.*;
 import io.enmasse.address.model.AuthenticationServiceType;
+import io.enmasse.address.model.*;
 import io.enmasse.admin.model.v1.*;
 import io.enmasse.systemtest.AddressSpaceType;
 import io.enmasse.systemtest.AddressType;
@@ -21,12 +21,14 @@ import io.enmasse.systemtest.utils.AddressSpaceUtils;
 import io.enmasse.systemtest.utils.AddressUtils;
 import io.enmasse.systemtest.utils.PlanUtils;
 import io.enmasse.systemtest.utils.TestUtils;
-import io.vertx.core.json.JsonObject;
 import org.apache.qpid.proton.message.Message;
 import org.junit.jupiter.api.*;
 import org.slf4j.Logger;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -41,7 +43,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class PlansTest extends TestBase implements ISeleniumProviderChrome {
 
     private static Logger log = CustomLogger.getLogger();
-    private static final AdminResourcesManager adminManager = new AdminResourcesManager(kubernetes);
+    private static final AdminResourcesManager adminManager = new AdminResourcesManager();
 
     @BeforeEach
     void setUp() throws Exception {
@@ -97,14 +99,14 @@ class PlansTest extends TestBase implements ISeleniumProviderChrome {
         setAddresses(weakAddressSpace, weakQueueDest, weakTopicDest);
 
         //get destinations
-        Future<List<Address>> getWeakQueue = getAddressesObjects(weakAddressSpace, Optional.of(weakQueueDest.getMetadata().getName()));
-        Future<List<Address>> getWeakTopic = getAddressesObjects(weakAddressSpace, Optional.of(weakTopicDest.getMetadata().getName()));
+        Address getWeakQueue = kubernetes.getAddressClient(weakAddressSpace.getMetadata().getNamespace()).withName(weakQueueDest.getMetadata().getName()).get();
+        Address getWeakTopic = kubernetes.getAddressClient(weakAddressSpace.getMetadata().getNamespace()).withName(weakTopicDest.getMetadata().getName()).get();
 
         String assertMessage = "Queue plan wasn't set properly";
         assertAll("Both destination should contain right addressPlan",
-                () -> assertEquals(getWeakQueue.get(20, TimeUnit.SECONDS).get(0).getSpec().getPlan(),
+                () -> assertEquals(getWeakQueue.getSpec().getPlan(),
                         weakQueuePlan.getMetadata().getName(), assertMessage),
-                () -> assertEquals(getWeakTopic.get(20, TimeUnit.SECONDS).get(0).getSpec().getPlan(),
+                () -> assertEquals(getWeakTopic.getSpec().getPlan(),
                         weakTopicPlan.getMetadata().getName(), assertMessage));
 
         //simple send/receive
@@ -364,15 +366,15 @@ class PlansTest extends TestBase implements ISeleniumProviderChrome {
         // Increase to too many partitions
         address.getSpec().setPlan(manyPartitionedQueue.getMetadata().getName());
         TimeoutBudget budget = new TimeoutBudget(2, TimeUnit.MINUTES);
-        AddressUtils.replaceAddress(addressApiClient, partitioned, address, false, budget);
+        AddressUtils.replaceAddress(partitioned, address, false, budget);
         Address replaced = null;
         while (!budget.timeoutExpired()) {
-            replaced = getAddressesObjects(partitioned, Optional.of(address.getMetadata().getName())).get(20, TimeUnit.SECONDS).get(0);
+            replaced = kubernetes.getAddressClient(partitioned.getMetadata().getNamespace()).withName(address.getMetadata().getName()).get();
             if (replaced.getStatus().getMessages().contains("Quota exceeded")) {
                 break;
             }
         }
-        replaced = getAddressesObjects(partitioned, Optional.of(address.getMetadata().getName())).get(20, TimeUnit.SECONDS).get(0);
+        replaced = kubernetes.getAddressClient(partitioned.getMetadata().getNamespace()).withName(address.getMetadata().getName()).get();
         assertNotNull(replaced);
         assertTrue(replaced.getStatus().getMessages().contains("Quota exceeded"), "No status message is present");
     }
@@ -480,13 +482,12 @@ class PlansTest extends TestBase implements ISeleniumProviderChrome {
 
         //remove addresses from first pod and wait for scale down
         deleteAddresses(messagePersistAddressSpace, queue1, queue2);
-        TestUtils.waitForNBrokerReplicas(addressApiClient, kubernetes, messagePersistAddressSpace, 1, queue4, new TimeoutBudget(2, TimeUnit.MINUTES));
+        TestUtils.waitForNBrokerReplicas(messagePersistAddressSpace, 1, queue4, new TimeoutBudget(2, TimeUnit.MINUTES));
 
         //validate count of addresses
-        Future<List<String>> addresses = getAddresses(messagePersistAddressSpace, Optional.empty());
-        List<String> addressNames = addresses.get(15, TimeUnit.SECONDS);
-        assertThat(String.format("Unexpected count of destinations, got following: %s", addressNames),
-                addressNames.size(), is(2));
+        List<Address> addresses = AddressUtils.getAddresses(messagePersistAddressSpace);
+        assertThat(String.format("Unexpected count of destinations, got following: %s", addresses),
+                addresses.size(), is(2));
 
         //receive messages from remaining addresses
         Future<List<Message>> recvResult3 = queueClient.recvMessages(queue3.getSpec().getAddress(), msgs.size());
@@ -527,7 +528,7 @@ class PlansTest extends TestBase implements ISeleniumProviderChrome {
         setAddresses(messagePersistAddressSpace, queue);
 
         //pod should have 2 replicas
-        TestUtils.waitForNBrokerReplicas(addressApiClient, kubernetes, messagePersistAddressSpace, 2, queue, new TimeoutBudget(2, TimeUnit.MINUTES));
+        TestUtils.waitForNBrokerReplicas(messagePersistAddressSpace, 2, queue, new TimeoutBudget(2, TimeUnit.MINUTES));
 
         //send 100000 messages to queue
         UserCredentials user = new UserCredentials("test-change-plan-user", "test_change_plan_pswd");
@@ -543,16 +544,13 @@ class PlansTest extends TestBase implements ISeleniumProviderChrome {
         //replace original plan in address by another
         adminManager.replaceAddressPlan(queuePlanSharded);
 
-        assertEquals(getAddressesObjects(
-                messagePersistAddressSpace,
-                Optional.of(queue.getMetadata().getName())).get(10, TimeUnit.SECONDS).get(0).getSpec().getPlan(),
+        assertEquals(kubernetes.getAddressClient(messagePersistAddressSpace.getMetadata().getNamespace()).withName(
+                queue.getMetadata().getName()).get().getSpec().getPlan(),
                 queuePlanSharded.getMetadata().getName(),
                 "New plan wasn't set correctly");
 
         //wait until address will be scaled down to 1 pod
         TestUtils.waitForNBrokerReplicas(
-                addressApiClient,
-                kubernetes,
                 messagePersistAddressSpace, 1, queue, new TimeoutBudget(2, TimeUnit.MINUTES));
         //test failed in command above ^, functionality of test code below wasn't verified :) !TODO
 
@@ -760,12 +758,11 @@ class PlansTest extends TestBase implements ISeleniumProviderChrome {
         addressSpace = new DoneableAddressSpace(addressSpace).editSpec().withPlan(afterAddressSpacePlan.getMetadata().getName()).endSpec().done();
         replaceAddressSpace(addressSpace, false);
 
-        JsonObject data = addressApiClient.getAddressSpace(addressSpace.getMetadata().getName());
         assertEquals(beforeAddressSpacePlan.getMetadata().getName(),
-                data.getJsonObject("metadata").getJsonObject("annotations").getString("enmasse.io/applied-plan"));
+                addressSpace.getMetadata().getAnnotations().get("enmasse.io/applied-plan"));
         assertEquals(String.format("Unable to apply plan [%s] to address space %s:%s: quota exceeded for resource broker",
                 afterQueuePlan.getMetadata().getName(), environment.namespace(), addressSpace.getMetadata().getName()),
-                data.getJsonObject("status").getJsonArray("messages").getString(0));
+                addressSpace.getStatus().getMessages().get(0));
     }
 
     @Test
@@ -822,19 +819,19 @@ class PlansTest extends TestBase implements ISeleniumProviderChrome {
 
     private void checkLimits(AddressSpace addressSpace, List<Address> allowedDest, List<Address> notAllowedDest, UserCredentials credentials)
             throws Exception {
+        var client = kubernetes.getAddressClient(addressSpace.getMetadata().getNamespace());
 
         log.info("Try to create {} addresses, and make sure that {} addresses will be not created",
                 Arrays.toString(allowedDest.stream().map(address -> address.getMetadata().getName()).toArray(String[]::new)),
                 Arrays.toString(notAllowedDest.stream().map(address -> address.getMetadata().getName()).toArray(String[]::new)));
 
-        setAddresses(addressSpace, new TimeoutBudget(10, TimeUnit.MINUTES), allowedDest.toArray(new Address[0]));
-        List<Future<List<Address>>> getAddresses = new ArrayList<>();
+        setAddresses(addressSpace, allowedDest.toArray(new Address[0]));
+        List<Address> getAddresses = new ArrayList<>();
         for (Address dest : allowedDest) {
-            getAddresses.add(getAddressesObjects(addressSpace, Optional.of(dest.getMetadata().getName())));
+            getAddresses.add(client.withName(dest.getMetadata().getName()).get());
         }
 
-        for (Future<List<Address>> getAddress : getAddresses) {
-            Address address = getAddress.get(20, TimeUnit.SECONDS).get(0);
+        for (Address address : getAddresses) {
             log.info("Address {} with plan {} is in phase {}", address.getMetadata().getName(), address.getSpec().getPlan(), address.getStatus().getPhase());
             String assertMessage = String.format("Address from allowed %s is not ready", address.getMetadata().getName());
             assertEquals(Phase.Active, address.getStatus().getPhase(), assertMessage);
@@ -853,11 +850,10 @@ class PlansTest extends TestBase implements ISeleniumProviderChrome {
             }
 
             for (Address dest : notAllowedDest) {
-                getAddresses.add(getAddressesObjects(addressSpace, Optional.of(dest.getMetadata().getName())));
+                getAddresses.add(client.withName(dest.getMetadata().getName()).get());
             }
 
-            for (Future<List<Address>> getAddress : getAddresses) {
-                Address address = getAddress.get(20, TimeUnit.SECONDS).get(0);
+            for (Address address : getAddresses) {
                 log.info("Address {} with plan {} is in phase {}", address.getMetadata().getName(), address.getSpec().getPlan(), address.getStatus().getPhase());
                 String assertMessage = String.format("Address from notAllowed %s is ready", address.getMetadata().getName());
                 assertEquals(Phase.Pending, address.getStatus().getPhase(), assertMessage);

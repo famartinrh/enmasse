@@ -35,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 @Tag(isolated)
 public abstract class WebConsolePlansTest extends TestBase implements ISeleniumProvider {
 
-    private static final AdminResourcesManager adminManager = new AdminResourcesManager(kubernetes);
+    private static final AdminResourcesManager adminManager = new AdminResourcesManager();
 
     private ConsoleWebPage consoleWebPage;
 
@@ -106,7 +106,7 @@ public abstract class WebConsolePlansTest extends TestBase implements ISeleniumP
         assertEquals(q3.getSpec().getPlan(), consoleWebPage.getAddressItem(q3).getPlan(), assertMessage);
 
         //simple send/receive
-        amqpClientFactory = new AmqpClientFactory(kubernetes, environment, consoleAddrSpace, user);
+        amqpClientFactory = new AmqpClientFactory(consoleAddrSpace, user);
         AmqpClient queueClient = amqpClientFactory.createQueueClient(consoleAddrSpace);
         queueClient.getConnectOptions().setCredentials(user);
 

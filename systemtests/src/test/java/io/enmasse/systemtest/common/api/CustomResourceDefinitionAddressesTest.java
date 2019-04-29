@@ -74,17 +74,13 @@ public class CustomResourceDefinitionAddressesTest extends TestBase implements I
         });
 
 
-        HashMap<String, String> queryParams = new HashMap<>();
-        queryParams.put("address", dest1.getSpec().getAddress());
-        Future<List<Address>> addressesObjects = getAddressesObjects(brokered, Optional.empty(), Optional.of(queryParams));
-        List<Address> dest1Response = addressesObjects.get(11, TimeUnit.SECONDS);
-        assertEquals(1, dest1Response.size(), String.format("Received unexpected count of addresses! got following addresses %s",
-                dest1Response.stream().map(address -> address.getMetadata().getName()).reduce("", String::concat)));
+        Address addressesObjects = kubernetes.getAddressClient(brokered.getMetadata().getNamespace()).withName(dest1.getMetadata().getName()).get();
+        assertNotNull(addressesObjects, "Didn't receive address from api server");
 
         // Patch new label
-        assertTrue(KubeCMDClient.patchCR(Address.KIND.toLowerCase(), dest1Response.get(0).getMetadata().getName(), "{\"metadata\":{\"annotations\":{\"mylabel\":\"myvalue\"}}}").getRetCode());
+        assertTrue(KubeCMDClient.patchCR(Address.KIND.toLowerCase(), dest1.getMetadata().getName(), "{\"metadata\":{\"annotations\":{\"mylabel\":\"myvalue\"}}}").getRetCode());
 
-        KubeCMDClient.deleteAddress(environment.namespace(), dest1Response.get(0).getMetadata().getName());
+        KubeCMDClient.deleteAddress(environment.namespace(), dest1.getMetadata().getName());
         KubeCMDClient.deleteAddress(environment.namespace(), AddressUtils.generateAddressMetadataName(brokered.getMetadata().getName(), dest2));
 
         TestUtils.waitUntilCondition(() -> {

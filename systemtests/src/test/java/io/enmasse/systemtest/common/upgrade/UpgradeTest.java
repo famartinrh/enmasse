@@ -54,7 +54,7 @@ class UpgradeTest extends TestBase {
         Path inventoryFile = Paths.get(System.getProperty("user.dir"), "ansible", "inventory", "systemtests.inventory");
         Path ansiblePlaybook = Paths.get(templatePaths.toString(), "ansible", "playbooks", "openshift", "deploy_all.yml");
         List<String> cmd = Arrays.asList("ansible-playbook", ansiblePlaybook.toString(), "-i", inventoryFile.toString(),
-                "--extra-vars", String.format("namespace=%s", kubernetes.getNamespace()));
+                "--extra-vars", String.format("namespace=%s", kubernetes.getInfraNamespace()));
 
         assertTrue(CmdClient.execute(cmd, 300_000, true).getRetCode(), "Deployment of new version of enmasse failed");
         log.info("Sleep after {}", downgrade ? "downgrade" : "upgrade");

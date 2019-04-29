@@ -24,10 +24,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 class PlansMarathonTest extends MarathonTestBase {
 
-    private static final AdminResourcesManager adminManager = new AdminResourcesManager(kubernetes);
+    private static final AdminResourcesManager adminManager = new AdminResourcesManager();
 
     @BeforeEach
     void setUp() {
@@ -129,7 +130,7 @@ class PlansMarathonTest extends MarathonTestBase {
             dest.add(AddressUtils.createQueueAddressObject("xxs-queue-" + i, xxsQueuePlan.getMetadata().getName()));
         }
 
-        appendAddresses(manyAddressesSpace, true, 10, dest.toArray(new Address[0]));
+        appendAddresses(manyAddressesSpace, true, new TimeoutBudget(10, TimeUnit.MINUTES), dest.toArray(new Address[0]));
 
         for (int i = 0; i < destCount; i += 1000) {
             waitForBrokerReplicas(manyAddressesSpace, dest.get(i), 1);

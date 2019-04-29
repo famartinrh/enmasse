@@ -37,7 +37,7 @@ public class IoTProjectApiClient extends ApiClient {
 
     public IoTProjectApiClient(Kubernetes kubernetes) {
         super(kubernetes, kubernetes::getRestEndpoint, IoTCrd.API_VERSION);
-        this.iotProjectPath = String.format("/apis/%s/namespaces/%s/iotprojects", IoTCrd.API_VERSION, kubernetes.getNamespace());
+        this.iotProjectPath = String.format("/apis/%s/namespaces/%s/iotprojects", IoTCrd.API_VERSION, kubernetes.getInfraNamespace());
     }
 
     public IoTProjectApiClient(Kubernetes kubernetes, String namespace) {

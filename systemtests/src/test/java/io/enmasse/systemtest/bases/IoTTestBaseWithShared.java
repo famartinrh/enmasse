@@ -80,7 +80,7 @@ public abstract class IoTTestBaseWithShared extends IoTTestBase {
     private AmqpClientFactory createAmqpClientFactory() throws Exception {
 
         getUserApiClient().createUser(this.addressSpace, this.credentials);
-        return new AmqpClientFactory(kubernetes, Environment.getInstance(), getAddressSpace(this.addressSpace), this.credentials);
+        return new AmqpClientFactory(getAddressSpace(this.iotProjectNamespace, this.addressSpace), this.credentials);
 
     }
 
@@ -90,7 +90,7 @@ public abstract class IoTTestBaseWithShared extends IoTTestBase {
             if (!environment.skipCleanup()) {
                 log.info("Shared IoTProject will be removed");
                 if (iotProjectApiClient.existsIoTProject(sharedProject.getMetadata().getName())) {
-                    IoTUtils.deleteIoTProjectAndWait(kubernetes, iotProjectApiClient, sharedProject, addressApiClient);
+                    IoTUtils.deleteIoTProjectAndWait(iotProjectApiClient, sharedProject);
                 } else {
                     log.info("IoTProject '" + sharedProject.getMetadata().getName() + "' doesn't exists!");
                 }

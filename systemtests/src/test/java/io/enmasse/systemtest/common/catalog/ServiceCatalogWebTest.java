@@ -85,7 +85,7 @@ class ServiceCatalogWebTest extends TestBase implements ISeleniumProviderFirefox
     void testProvisionAddressSpaceBrokered() throws Exception {
         AddressSpace brokered = AddressSpaceUtils.createAddressSpaceObject("addr-space-brokered", getUserProjectName("addr-space-brokered"), AddressSpaceType.BROKERED);
         provisionedServices.add(brokered);
-        OpenshiftWebPage ocPage = new OpenshiftWebPage(selenium, addressApiClient, getOCConsoleRoute(), ocTestUser);
+        OpenshiftWebPage ocPage = new OpenshiftWebPage(selenium, getOCConsoleRoute(), ocTestUser);
         ocPage.openOpenshiftPage();
         ocPage.provisionAddressSpaceViaSC(brokered);
         ocPage.deprovisionAddressSpace(brokered.getMetadata().getNamespace());
@@ -96,7 +96,7 @@ class ServiceCatalogWebTest extends TestBase implements ISeleniumProviderFirefox
     void testProvisionAddressSpaceStandard() throws Exception {
         AddressSpace standard = AddressSpaceUtils.createAddressSpaceObject("addr-space-standard", getUserProjectName("addr-space-standard"), AddressSpaceType.STANDARD, AddressSpacePlans.STANDARD_SMALL);
         provisionedServices.add(standard);
-        OpenshiftWebPage ocPage = new OpenshiftWebPage(selenium, addressApiClient, getOCConsoleRoute(), ocTestUser);
+        OpenshiftWebPage ocPage = new OpenshiftWebPage(selenium, getOCConsoleRoute(), ocTestUser);
         ocPage.openOpenshiftPage();
         ocPage.provisionAddressSpaceViaSC(standard);
         ocPage.deprovisionAddressSpace(standard.getMetadata().getNamespace());
@@ -107,7 +107,7 @@ class ServiceCatalogWebTest extends TestBase implements ISeleniumProviderFirefox
     void testCreateDeleteBindings() throws Exception {
         AddressSpace brokered = AddressSpaceUtils.createAddressSpaceObject("test-binding-space", getUserProjectName("test-binding-space"), AddressSpaceType.BROKERED);
         provisionedServices.add(brokered);
-        OpenshiftWebPage ocPage = new OpenshiftWebPage(selenium, addressApiClient, getOCConsoleRoute(), ocTestUser);
+        OpenshiftWebPage ocPage = new OpenshiftWebPage(selenium, getOCConsoleRoute(), ocTestUser);
         ocPage.openOpenshiftPage();
         ocPage.provisionAddressSpaceViaSC(brokered);
         String binding1 = ocPage.createBinding(brokered, null, null);
@@ -125,11 +125,11 @@ class ServiceCatalogWebTest extends TestBase implements ISeleniumProviderFirefox
         Address topic = AddressUtils.createTopicAddressObject("test-topic", DestinationPlan.BROKERED_TOPIC);
         AddressSpace brokered = AddressSpaceUtils.createAddressSpaceObject("test-messaging-space", getUserProjectName("test-messaging-space"), AddressSpaceType.BROKERED, AuthenticationServiceType.STANDARD);
         provisionedServices.add(brokered);
-        OpenshiftWebPage ocPage = new OpenshiftWebPage(selenium, addressApiClient, getOCConsoleRoute(), ocTestUser);
+        OpenshiftWebPage ocPage = new OpenshiftWebPage(selenium, getOCConsoleRoute(), ocTestUser);
 
         ocPage.openOpenshiftPage();
         ocPage.provisionAddressSpaceViaSC(brokered);
-        reloadAddressSpaceEndpoints(brokered);
+        brokered = kubernetes.getAddressSpaceClient().withName(brokered.getMetadata().getName()).get();
 
         String bindingID = ocPage.createBinding(brokered, null, null);
         String restrictedAccesId = ocPage.createBinding(brokered, "noexists", "noexists");
@@ -147,10 +147,10 @@ class ServiceCatalogWebTest extends TestBase implements ISeleniumProviderFirefox
         log.info("Remove binding and check if client cannot connect");
         ocPage.removeBinding(brokered, bindingID);
 
-        try(UserApiClient clientApi = new UserApiClient(kubernetes, brokered.getMetadata().getNamespace())) {
+        try (UserApiClient clientApi = new UserApiClient(kubernetes, brokered.getMetadata().getNamespace())) {
             long end = System.currentTimeMillis() + 30_000;
             String username = credentials.getCredentials().getUsername();
-            while(userExist(clientApi, brokered, username) && end > System.currentTimeMillis()) {
+            while (userExist(clientApi, brokered, username) && end > System.currentTimeMillis()) {
                 Thread.sleep(5_000);
                 log.info("Still awaiting user {} to be removed.", username);
             }
@@ -165,11 +165,11 @@ class ServiceCatalogWebTest extends TestBase implements ISeleniumProviderFirefox
         Address queue = AddressUtils.createQueueAddressObject("test-queue", DestinationPlan.STANDARD_LARGE_QUEUE);
         AddressSpace addressSpace = AddressSpaceUtils.createAddressSpaceObject("test-cert-space", getUserProjectName("test-cert-space"), AddressSpaceType.STANDARD);
         provisionedServices.add(addressSpace);
-        OpenshiftWebPage ocPage = new OpenshiftWebPage(selenium, addressApiClient, getOCConsoleRoute(), ocTestUser);
+        OpenshiftWebPage ocPage = new OpenshiftWebPage(selenium, getOCConsoleRoute(), ocTestUser);
 
         ocPage.openOpenshiftPage();
         ocPage.provisionAddressSpaceViaSC(addressSpace);
-        reloadAddressSpaceEndpoints(addressSpace);
+        addressSpace = kubernetes.getAddressSpaceClient().withName(addressSpace.getMetadata().getName()).get();
 
         String bindingID = ocPage.createBinding(addressSpace, null, null);
         BindingSecretData credentials = ocPage.viewSecretOfBinding(addressSpace, bindingID);
@@ -194,10 +194,10 @@ class ServiceCatalogWebTest extends TestBase implements ISeleniumProviderFirefox
 
         //provision via oc web ui and wait until ready
         provisionedServices.add(brokeredSpace);
-        OpenshiftWebPage ocPage = new OpenshiftWebPage(selenium, addressApiClient, getOCConsoleRoute(), ocTestUser);
+        OpenshiftWebPage ocPage = new OpenshiftWebPage(selenium, getOCConsoleRoute(), ocTestUser);
         ocPage.openOpenshiftPage();
         ocPage.provisionAddressSpaceViaSC(brokeredSpace);
-        reloadAddressSpaceEndpoints(brokeredSpace);
+        brokeredSpace = kubernetes.getAddressSpaceClient().withName(brokeredSpace.getMetadata().getName()).get();
 
         //open console login web page and use OpenShift credentials for login
         ConsoleWebPage consolePage = ocPage.clickOnDashboard(brokeredSpace);
@@ -210,11 +210,11 @@ class ServiceCatalogWebTest extends TestBase implements ISeleniumProviderFirefox
         Address queue = AddressUtils.createQueueAddressObject("test-queue", DestinationPlan.STANDARD_LARGE_QUEUE);
         AddressSpace addressSpace = AddressSpaceUtils.createAddressSpaceObject("cluster-messaging-space", getUserProjectName("cluster-messaging-space"), AddressSpaceType.STANDARD);
         provisionedServices.add(addressSpace);
-        OpenshiftWebPage ocPage = new OpenshiftWebPage(selenium, addressApiClient, getOCConsoleRoute(), ocTestUser);
+        OpenshiftWebPage ocPage = new OpenshiftWebPage(selenium, getOCConsoleRoute(), ocTestUser);
 
         ocPage.openOpenshiftPage();
         ocPage.provisionAddressSpaceViaSC(addressSpace);
-        reloadAddressSpaceEndpoints(addressSpace);
+        addressSpace = kubernetes.getAddressSpaceClient().withName(addressSpace.getMetadata().getName()).get();
 
         String bindingID = ocPage.createBinding(addressSpace, null, null);
         BindingSecretData credentials = ocPage.viewSecretOfBinding(addressSpace, bindingID);
@@ -256,10 +256,10 @@ class ServiceCatalogWebTest extends TestBase implements ISeleniumProviderFirefox
         AddressSpace addressSpace = AddressSpaceUtils.createAddressSpaceObject("test-addr-space", getUserProjectName("test-addr-space"), AuthenticationServiceType.STANDARD);
 
         provisionedServices.add(addressSpace);
-        OpenshiftWebPage ocPage = new OpenshiftWebPage(selenium, addressApiClient, getOCConsoleRoute(), ocTestUser);
+        OpenshiftWebPage ocPage = new OpenshiftWebPage(selenium, getOCConsoleRoute(), ocTestUser);
         ocPage.openOpenshiftPage();
         ocPage.provisionAddressSpaceViaSC(addressSpace);
-        reloadAddressSpaceEndpoints(addressSpace);
+        addressSpace = kubernetes.getAddressSpaceClient().withName(addressSpace.getMetadata().getName()).get();
 
         ConsoleWebPage consolePage = ocPage.clickOnDashboard(addressSpace);
         consolePage.login(ocTestUser);

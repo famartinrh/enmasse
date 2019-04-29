@@ -20,7 +20,6 @@ import io.enmasse.iot.model.v1.IoTProject;
 import io.enmasse.systemtest.CustomLogger;
 import io.enmasse.systemtest.TimeoutBudget;
 import io.enmasse.systemtest.WaitPhase;
-import io.enmasse.systemtest.apiclients.AddressApiClient;
 import io.enmasse.systemtest.apiclients.IoTConfigApiClient;
 import io.enmasse.systemtest.apiclients.IoTProjectApiClient;
 import io.enmasse.systemtest.apiclients.UserApiClient;
@@ -56,7 +55,6 @@ public abstract class IoTTestBase extends TestBase {
             }
             iotProjectApiClient = new IoTProjectApiClient(kubernetes, iotProjectNamespace);
             //additional clients that need to query against the namespace where iotprojects are created
-            addressApiClient = new AddressApiClient(kubernetes, iotProjectNamespace);
             setUserApiClient(new UserApiClient(kubernetes, iotProjectNamespace));
         }
         if (iotConfigApiClient == null) {
@@ -72,7 +70,7 @@ public abstract class IoTTestBase extends TestBase {
                 log.info("All IoTProjects will be removed");
                 for (IoTProject project : iotProjects) {
                     if (iotProjectApiClient.existsIoTProject(project.getMetadata().getName())) {
-                        IoTUtils.deleteIoTProjectAndWait(kubernetes, iotProjectApiClient, project, addressApiClient);
+                        IoTUtils.deleteIoTProjectAndWait(iotProjectApiClient, project);
                     } else {
                         log.info("IoTProject '" + project.getMetadata().getName() + "' doesn't exists!");
                     }
@@ -142,7 +140,7 @@ public abstract class IoTTestBase extends TestBase {
                 iotProjects.add(project);
             }
         }
-        IoTUtils.waitForIoTProjectReady(iotProjectApiClient, addressApiClient, project);
+        IoTUtils.waitForIoTProjectReady(iotProjectApiClient, project);
         IoTUtils.syncIoTProject(project, iotProjectApiClient);
         TimeMeasuringSystem.stopOperation(operationID);
     }

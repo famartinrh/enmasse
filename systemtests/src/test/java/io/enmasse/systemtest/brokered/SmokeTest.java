@@ -7,7 +7,6 @@ package io.enmasse.systemtest.brokered;
 import io.enmasse.address.model.Address;
 import io.enmasse.address.model.AddressSpace;
 import io.enmasse.address.model.AuthenticationServiceType;
-import io.enmasse.systemtest.AddressAlreadyExistsException;
 import io.enmasse.systemtest.AddressSpaceType;
 import io.enmasse.systemtest.AddressType;
 import io.enmasse.systemtest.UserCredentials;
@@ -29,19 +28,14 @@ import java.util.concurrent.TimeUnit;
 
 import static io.enmasse.systemtest.TestTag.nonPR;
 import static io.enmasse.systemtest.TestTag.smoke;
-import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @Tag(nonPR)
 @Tag(smoke)
 class SmokeTest extends TestBaseWithShared implements ITestBaseBrokered {
 
-    /**
-     * related github issue: #335
-     */
     @Test
     void testAddressTypes() throws Exception {
         Address queueA = AddressUtils.createQueueAddressObject("brokeredQueueA", getDefaultPlan(AddressType.QUEUE));
@@ -75,9 +69,6 @@ class SmokeTest extends TestBaseWithShared implements ITestBaseBrokered {
                         recvResults.get(1).get(1, TimeUnit.MINUTES).size(), is(msgsBatch.size() + msgsBatch2.size())));
     }
 
-    /**
-     * related github issue: #334
-     */
     @Test
     void testCreateDeleteAddressSpace() throws Exception {
         AddressSpace addressSpaceA = AddressSpaceUtils.createAddressSpaceObject("brokered-create-delete-a", AddressSpaceType.BROKERED,
@@ -108,16 +99,5 @@ class SmokeTest extends TestBaseWithShared implements ITestBaseBrokered {
         deleteAddressSpace(addressSpaceA);
 
         QueueTest.runQueueTest(amqpQueueCliC, queueB);
-    }
-
-    @Test
-    void testCreateAlreadyExistingAddress() throws Exception {
-        String addr_name = "brokeredAddrA";
-        Address queueA = AddressUtils.createQueueAddressObject(addr_name, getDefaultPlan(AddressType.QUEUE));
-        setAddresses(queueA);
-
-        Address topicA = AddressUtils.createTopicAddressObject(addr_name, getDefaultPlan(AddressType.TOPIC));
-        assertThrows(AddressAlreadyExistsException.class, () -> setAddresses(HTTP_CONFLICT, topicA),
-                "setAddresses does not throw right exception");
     }
 }

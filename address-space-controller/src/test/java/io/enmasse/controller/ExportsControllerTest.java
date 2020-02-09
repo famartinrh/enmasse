@@ -12,11 +12,14 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.fabric8.openshift.client.server.mock.OpenShiftServer;
+import io.vertx.core.json.JsonObject;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Base64;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -69,6 +72,42 @@ public class ExportsControllerTest extends JULInitializingTest {
         assertNotNull(configMap);
         data = configMap.getData();
         assertEquals("messaging2.svc", data.get("service.host"));
+    }
+
+    @Test
+    public void testExportConfigMapJson() throws Exception {
+        AddressSpace addressSpace = createTestSpace(new ExportSpecBuilder()
+                .withKind(ExportKind.ConfigMap)
+                .withName("mymap")
+                .withFormat(ExportFormat.json).build());
+
+        ExportsController controller = new ExportsController(client);
+        controller.reconcileAnyState(addressSpace);
+
+        ConfigMap configMap = client.configMaps().inNamespace(addressSpace.getMetadata().getNamespace()).withName("mymap").get();
+        assertNotNull(configMap);
+        Map<String, String> cmdata = configMap.getBinaryData();
+        String connectJson = cmdata.get("connect.json");
+        assertNotNull(connectJson);
+        String conn = new String(Base64.getDecoder().decode(connectJson.getBytes()));
+        JsonObject json = new JsonObject(conn);
+        assertNotNull(connectJson);
+        assertEquals(443, json.getInteger("port"));
+        assertEquals("messaging.example.com", json.getString("host"));
+        assertEquals("mycert", json.getJsonObject("tls").getString("ca"));
+
+        addressSpace.getStatus().getEndpointStatuses().get(0).setExternalHost("dummy.example.com");
+        controller.reconcileAnyState(addressSpace);
+
+        configMap = client.configMaps().inNamespace(addressSpace.getMetadata().getNamespace()).withName("mymap").get();
+        assertNotNull(configMap);
+        cmdata = configMap.getBinaryData();
+        connectJson = cmdata.get("connect.json");
+        assertNotNull(connectJson);
+        conn = new String(Base64.getDecoder().decode(connectJson.getBytes()));
+        json = new JsonObject(conn);
+        assertEquals("dummy.example.com", json.getString("host"));
+
     }
 
     @Test

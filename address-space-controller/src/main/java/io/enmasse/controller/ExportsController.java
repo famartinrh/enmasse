@@ -7,6 +7,8 @@ package io.enmasse.controller;
 import io.enmasse.address.model.*;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.vertx.core.json.JsonObject;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,7 +43,7 @@ public class ExportsController implements Controller {
                                 exportAsSecret(export.getName(), endpointStatus, addressSpace);
                                 break;
                             case ConfigMap:
-                                exportAsConfigMap(export.getName(), endpointStatus, addressSpace);
+                                exportAsConfigMap(export, endpointStatus, addressSpace);
                                 break;
                             case Service:
                                 exportAsService(export.getName(), endpointStatus, addressSpace);
@@ -88,9 +90,9 @@ public class ExportsController implements Controller {
         }
     }
 
-    private void exportAsConfigMap(String name, EndpointStatus endpointStatus, AddressSpace addressSpace) {
-        Map<String, String> exportMap = buildExportMap(addressSpace.getStatus(), endpointStatus);
-        ConfigMap configMap = new ConfigMapBuilder()
+    private void exportAsConfigMap(ExportSpec export, EndpointStatus endpointStatus, AddressSpace addressSpace) {
+		String name = export.getName();
+		var mapBuilder = new ConfigMapBuilder()
                 .editOrNewMetadata()
                 .withName(name)
                 .withNamespace(addressSpace.getMetadata().getNamespace())
@@ -102,12 +104,21 @@ public class ExportsController implements Controller {
                         .withName(addressSpace.getMetadata().getName())
                         .withUid(addressSpace.getMetadata().getUid())
                         .build())
-                .endMetadata()
-                .addToData(exportMap)
-                .build();
+                .endMetadata();
+
+		ConfigMap configMap;
+		if (export.getFormat()!=null && export.getFormat()==ExportFormat.json) {
+			configMap = mapBuilder
+					.addToBinaryData("connect.json", Base64.getEncoder().encodeToString(buildExportJson(addressSpace.getStatus(), endpointStatus).getBytes()))
+					.build();
+		} else {
+			configMap = mapBuilder
+					.addToData(buildExportMap(addressSpace.getStatus(), endpointStatus))
+					.build();
+		}
 
         ConfigMap existing = client.configMaps().inNamespace(addressSpace.getMetadata().getNamespace()).withName(name).get();
-        if (existing != null && !exportMap.equals(existing.getData())) {
+        if (existing != null && ( !configMap.getData().equals(existing.getData()) || !configMap.getBinaryData().equals(existing.getBinaryData())) ) {
             client.configMaps().inNamespace(addressSpace.getMetadata().getNamespace()).withName(name).replace(configMap);
         } else {
             client.configMaps().inNamespace(addressSpace.getMetadata().getNamespace()).withName(name).createOrReplace(configMap);
@@ -164,6 +175,32 @@ public class ExportsController implements Controller {
         return map;
     }
 
+    private static String buildExportJson(AddressSpaceStatus addressSpaceStatus, EndpointStatus endpointStatus) {
+        JsonObject json = new JsonObject();
+
+        if ( endpointStatus.getExternalHost() != null ) {
+            // amqps set up
+            json.put("host", endpointStatus.getExternalHost());
+            json.put("port", endpointStatus.getExternalPorts().getOrDefault("amqps", 443));
+            json.put("scheme", "amqps");
+            JsonObject tls = new JsonObject();
+            if ( endpointStatus.getCert() != null ) {
+                tls.put("cert", endpointStatus.getCert());
+            }
+            if ( addressSpaceStatus.getCaCert() != null ) {
+                tls.put("ca", addressSpaceStatus.getCaCert());
+            }
+            tls.put("verify", true);
+            json.put("tls", tls);
+        } else {
+            // amqp set up
+            json.put("host", endpointStatus.getServiceHost());
+            json.put("port", endpointStatus.getServicePorts().getOrDefault("amqp", 5672));
+            json.put("tls", new JsonObject().put("verify", false));
+        }
+        // TODO user password?
+        return json.encode();
+    }
 
     private static Map<String, String> decodeExportMap(Map<String, String> data) {
         Map<String, String> exportData = new HashMap<>();

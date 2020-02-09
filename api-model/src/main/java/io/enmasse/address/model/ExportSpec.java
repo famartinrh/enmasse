@@ -26,6 +26,7 @@ import java.util.Objects;
 public class ExportSpec extends AbstractWithAdditionalProperties {
     private ExportKind kind;
     private String name;
+    private ExportFormat format;
 
     public ExportKind getKind() {
         return kind;
@@ -43,10 +44,18 @@ public class ExportSpec extends AbstractWithAdditionalProperties {
         this.name = name;
     }
 
-    @Override
+    public ExportFormat getFormat() {
+		return format;
+	}
+
+	public void setFormat(ExportFormat format) {
+		this.format = format;
+	}
+
+	@Override
     public String toString() {
         return "ExportSpec{" +
-                "kind=" + kind +
+                "kind=" + kind + ", format=" + format +
                 ", name='" + name + '\'' +
                 '}';
     }
@@ -57,11 +66,12 @@ public class ExportSpec extends AbstractWithAdditionalProperties {
         if (o == null || getClass() != o.getClass()) return false;
         ExportSpec that = (ExportSpec) o;
         return kind == that.kind &&
-                Objects.equals(name, that.name);
+                Objects.equals(name, that.name) &&
+                format == that.format;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(kind, name);
+        return Objects.hash(kind, name, format);
     }
 }
